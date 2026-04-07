@@ -6,6 +6,7 @@ from catalog_builder import (
     load_or_refresh_catalog, get_regions, get_comp_by_label,
     get_season_options, get_train_defaults, get_predict_default_label,
 )
+from ddgs import DDGS
 
 st.set_page_config(page_title='Football Predictor Pro', page_icon='⚽',
                    layout='wide', initial_sidebar_state='expanded')
@@ -51,6 +52,15 @@ def push_history(home,away,comp_id):
     entry={'home':home,'away':away,'comp_id':comp_id,'label':f'{home} vs {away}'}
     h=[e for e in st.session_state.search_history if e['label']!=entry['label']]
     h.insert(0,entry); st.session_state.search_history=h[:6]
+
+def web_search(query, max_results=5):
+    """Realiza búsqueda web usando DuckDuckGo de forma gratuita."""
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=max_results))
+        return results
+    except Exception as e:
+        return [{'title': 'Error en búsqueda', 'body': str(e), 'href': ''}]
 
 def top5_scores(matrix,max_g=6):
     M=np.array(matrix)[:max_g+1,:max_g+1]; rows=[]
@@ -311,6 +321,33 @@ with tab_search:
     st.caption('Equipo, liga o partido · Ej: Bayern vs Dortmund · Chelsea · Premier League')
     # [PARCHE 3] — Panel de fuentes visible siempre en el tab principal
     if orch.system.trained: sources_panel()
+    
+    # 🔍 Búsqueda Web con DuckDuckGo
+    st.markdown("---")
+    st.markdown("### 🌐 Búsqueda Web")
+    web_query = st.text_input("Buscar noticias y estadísticas en la web:", 
+                              placeholder="Ej: Bayern Munich lesiones, Premier League predicciones...",
+                              key='web_search_input')
+    if st.button("🔍 Buscar en la Web", type="secondary"):
+        if web_query:
+            with st.spinner("Buscando en la web..."):
+                results = web_search(web_query, max_results=5)
+                if results:
+                    for r in results:
+                        st.markdown(f"""
+                        <div style='background:#1e293b;border:1px solid #334155;border-radius:8px;padding:.6rem;margin:.3rem 0;'>
+                            <a href='{r.get('href','')}' target='_blank' style='color:#3b82f6;text-decoration:none;font-weight:700;font-size:1rem'>
+                                {r.get('title','Sin título')}
+                            </a>
+                            <p style='color:#94a3b8;font-size:.85rem;margin:.3rem 0'>{r.get('body','')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.warning("No se encontraron resultados.")
+        else:
+            st.warning("Escribe un término de búsqueda.")
+    
+    st.markdown("---")
     if st.session_state.search_history:
         chip_cols=st.columns(len(st.session_state.search_history))
         for i,h_e in enumerate(st.session_state.search_history):
