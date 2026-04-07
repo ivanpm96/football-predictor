@@ -8,3 +8,6 @@ requests>=2.31
 plotly>=5.20
 ddgs>=3.0
 trafilatura>=2.0
+transformers>=4.35
+torch>=2.0
+sentencepiece>=0.1.99
