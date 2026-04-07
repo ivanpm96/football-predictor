@@ -7,6 +7,7 @@ from catalog_builder import (
     get_season_options, get_train_defaults, get_predict_default_label,
 )
 from ddgs import DDGS
+import trafilatura, requests
 
 st.set_page_config(page_title='Football Predictor Pro', page_icon='⚽',
                    layout='wide', initial_sidebar_state='expanded')
@@ -53,14 +54,45 @@ def push_history(home,away,comp_id):
     h=[e for e in st.session_state.search_history if e['label']!=entry['label']]
     h.insert(0,entry); st.session_state.search_history=h[:6]
 
+def extract_page_content(url, timeout=10):
+    """Extrae el contenido principal de una página web usando trafilatura."""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        response = requests.get(url, headers=headers, timeout=timeout)
+        if response.status_code == 200:
+            content = trafilatura.extract(response.text, include_links=False, favor_precision=True)
+            if content:
+                # Limitar a los primeros 800 caracteres para no saturar la UI
+                return content[:800] + ('...' if len(content) > 800 else '')
+        return None
+    except Exception:
+        return None
+
 def web_search(query, max_results=5):
-    """Realiza búsqueda web usando DuckDuckGo de forma gratuita."""
+    """Realiza búsqueda web usando DuckDuckGo y extrae el contenido de las páginas."""
     try:
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
+            search_results = list(ddgs.text(query, max_results=max_results))
+        
+        results = []
+        for r in search_results:
+            url = r.get('href', '')
+            title = r.get('title', 'Sin título')
+            snippet = r.get('body', '')
+            
+            # Extraer contenido completo de la página
+            full_content = extract_page_content(url) if url else None
+            
+            results.append({
+                'title': title,
+                'body': snippet,
+                'href': url,
+                'full_content': full_content
+            })
+        
         return results
     except Exception as e:
-        return [{'title': 'Error en búsqueda', 'body': str(e), 'href': ''}]
+        return [{'title': 'Error en búsqueda', 'body': str(e), 'href': '', 'full_content': None}]
 
 def top5_scores(matrix,max_g=6):
     M=np.array(matrix)[:max_g+1,:max_g+1]; rows=[]
@@ -330,18 +362,35 @@ with tab_search:
                               key='web_search_input')
     if st.button("🔍 Buscar en la Web", type="secondary"):
         if web_query:
-            with st.spinner("Buscando en la web..."):
+            with st.spinner("Buscando y extrayendo información..."):
                 results = web_search(web_query, max_results=5)
                 if results:
                     for r in results:
+                        title = r.get('title', 'Sin título')
+                        url = r.get('href', '')
+                        snippet = r.get('body', '')
+                        full_content = r.get('full_content')
+                        
+                        # Mostrar tarjeta con resultado
                         st.markdown(f"""
                         <div style='background:#1e293b;border:1px solid #334155;border-radius:8px;padding:.6rem;margin:.3rem 0;'>
-                            <a href='{r.get('href','')}' target='_blank' style='color:#3b82f6;text-decoration:none;font-weight:700;font-size:1rem'>
-                                {r.get('title','Sin título')}
+                            <a href='{url}' target='_blank' style='color:#3b82f6;text-decoration:none;font-weight:700;font-size:1rem'>
+                                {title}
                             </a>
-                            <p style='color:#94a3b8;font-size:.85rem;margin:.3rem 0'>{r.get('body','')}</p>
+                            <p style='color:#94a3b8;font-size:.85rem;margin:.3rem 0'><b>Resumen:</b> {snippet}</p>
                         </div>
                         """, unsafe_allow_html=True)
+                        
+                        # Mostrar contenido extraído si está disponible
+                        if full_content:
+                            with st.expander("📄 Ver contenido completo"):
+                                st.markdown(f"**Fuente:** [{title}]({url})")
+                                st.text(full_content)
+                        elif url:
+                            with st.expander("📄 Ver contenido completo"):
+                                st.info("No se pudo extraer el contenido automáticamente. Haz clic en el enlace para visitar la página.")
+                        
+                        st.markdown("---")
                 else:
                     st.warning("No se encontraron resultados.")
         else:
