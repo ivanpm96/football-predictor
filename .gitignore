@@ -1,1 +1,28 @@
-Nothing needs to be added to the .gitignore file based on the provided changes. The added and modified files (ai_features.py, app.py, requirements.txt) are all source code and configuration files that should not be ignored.
+```
+# Dependencies
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+.env
+.env.local
+.env.*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+```

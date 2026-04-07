@@ -1,19 +1,36 @@
 # ai_features.py - Funciones de IA para análisis de noticias
-from transformers import pipeline
 import streamlit as st
 
-@st.cache_resource(show_spinner=False)
+# Modelos ligeros y compatibles
+SUMMARIZER_MODEL = "sshleifer/distilbart-cnn-6-6"  # Más ligero que BART
+SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
+
+@st.cache_resource(show_spinner="Cargando modelos de IA...")
 def get_ai_pipelines():
     """Carga los modelos de IA para resumen y análisis de sentimiento."""
     try:
-        summarizer = pipeline("summarization", model="facebook/bart-large-cnn", 
-                             device=-1, max_length=150, min_length=40, do_sample=False)
-        sentiment_analyzer = pipeline("sentiment-analysis", 
-                                     model="distilbert-base-uncased-finetuned-sst-2-english",
-                                     device=-1)
+        from transformers import pipeline
+        
+        # Cargar modelo de resumen (más ligero)
+        summarizer = pipeline(
+            "summarization", 
+            model=SUMMARIZER_MODEL,
+            device=-1,  # CPU
+            max_length=130, 
+            min_length=30, 
+            do_sample=False
+        )
+        
+        # Cargar modelo de sentimiento
+        sentiment_analyzer = pipeline(
+            "sentiment-analysis", 
+            model=SENTIMENT_MODEL,
+            device=-1  # CPU
+        )
+        
         return {'summarizer': summarizer, 'sentiment': sentiment_analyzer}
     except Exception as e:
-        st.error(f"Error cargando modelos IA: {e}")
+        st.warning(f"Modelos de IA no disponibles: {str(e)[:100]}...")
         return None
 
 def ai_summarize_texts(texts, max_length=150):
