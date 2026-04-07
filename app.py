@@ -8,6 +8,7 @@ from catalog_builder import (
 )
 from ddgs import DDGS
 import trafilatura, requests
+from ai_features import get_ai_pipelines, ai_summarize_texts, ai_analyze_sentiment, ai_generate_prediction
 
 st.set_page_config(page_title='Football Predictor Pro', page_icon='⚽',
                    layout='wide', initial_sidebar_state='expanded')
